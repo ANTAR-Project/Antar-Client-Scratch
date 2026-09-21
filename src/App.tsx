@@ -4,6 +4,8 @@ import ToastContainer from './components/ToastContainer';
 import FileBrowserPage from './pages/FileBrowserPage';
 import HlsPlayerPage from './pages/HlsPlayerPage';
 import LoginPage from './pages/LoginPage';
+import SharedWorkspacePage from './pages/SharedWorkspacePage';
+import WorkspacePage from './pages/WorkspacePage';
 import { useToast } from './hooks/useToast';
 import { useAuth } from './context/AuthContext';
 
@@ -28,8 +30,10 @@ function App() {
 
         <main className="app-main">
           <Routes>
-            <Route path="/"       element={<FileBrowserPage showToast={showToast} />} />
-            <Route path="/player" element={<HlsPlayerPage  showToast={showToast} />} />
+            <Route path="/"          element={<FileBrowserPage    showToast={showToast} />} />
+            <Route path="/shared"    element={<SharedWorkspacePage showToast={showToast} />} />
+            <Route path="/workspace" element={<WorkspacePage       showToast={showToast} />} />
+            <Route path="/player"    element={<HlsPlayerPage       showToast={showToast} />} />
           </Routes>
         </main>
 
@@ -46,4 +50,4 @@ function App() {
   );
 }
 
-export default App;
+export default App;

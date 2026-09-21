@@ -6,4 +6,5 @@ export const NAS_IP  = import.meta.env.VITE_NAS_IP  as string;
 export const NAS_API       = '/api/v1/nas-orchestrator';
 export const STREAMING_API = '/api/v1/stream';
 export const VIDEO_API     = '/api/v1/videos';
+export const AUTH_API      = '/api/v1/auth-service';
 

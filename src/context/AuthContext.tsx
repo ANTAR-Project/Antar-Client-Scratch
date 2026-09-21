@@ -9,16 +9,18 @@ import {
 import type { ReactNode } from 'react';
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const LS_TOKEN_KEY = 'antar_auth_token';
+const LS_TOKEN_KEY    = 'antar_auth_token';
+const LS_USERNAME_KEY = 'antar_username';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface AuthState {
-  token: string | null;
+  token:    string | null;
+  username: string | null;
 }
 
 interface AuthContextValue extends AuthState {
   /** Store the supplied token in context & localStorage. */
-  setToken: (token: string) => void;
+  setToken: (token: string, username?: string) => void;
   logout: () => void;
   /** Convenience: auth header object to spread into fetch() options */
   authHeader: Record<string, string>;
@@ -32,7 +34,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // ── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(() => ({
-    token: localStorage.getItem(LS_TOKEN_KEY),
+    token:    localStorage.getItem(LS_TOKEN_KEY),
+    username: localStorage.getItem(LS_USERNAME_KEY),
   }));
 
   // Keep localStorage in sync whenever state changes
@@ -42,14 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       localStorage.removeItem(LS_TOKEN_KEY);
     }
-  }, [state.token]);
+    if (state.username) {
+      localStorage.setItem(LS_USERNAME_KEY, state.username);
+    } else {
+      localStorage.removeItem(LS_USERNAME_KEY);
+    }
+  }, [state.token, state.username]);
 
-  const setToken = useCallback((token: string) => {
-    setState({ token: token.trim() });
+  const setToken = useCallback((token: string, username?: string) => {
+    setState({ token: token.trim(), username: username?.trim() ?? null });
   }, []);
 
   const logout = useCallback(() => {
-    setState({ token: null });
+    setState({ token: null, username: null });
   }, []);
 
   const authHeader = useMemo<Record<string, string>>(

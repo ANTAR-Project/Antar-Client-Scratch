@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { API, NAS_IP } from '../config';
 import logoUrl from '/logo.png';
-import { FaFolder, FaPlay, FaRightFromBracket } from 'react-icons/fa6';
+import { FaFolder, FaFolderOpen, FaGear, FaPlay, FaRightFromBracket } from 'react-icons/fa6';
 import { useAuth } from '../context/AuthContext';
 
 export default function SiteHeader() {
@@ -50,7 +50,15 @@ export default function SiteHeader() {
       <nav className="app-tabs">
         <NavLink to="/" end id="tab-browser" className={({ isActive }) => `app-tab${isActive ? ' active' : ''}`}>
           <FaFolder style={{ fontSize: 13 }} />
-          File Browser
+          My Files
+        </NavLink>
+        <NavLink to="/shared" id="tab-shared" className={({ isActive }) => `app-tab${isActive ? ' active' : ''}`}>
+          <FaFolderOpen style={{ fontSize: 13 }} />
+          Shared
+        </NavLink>
+        <NavLink to="/workspace" id="tab-workspace" className={({ isActive }) => `app-tab${isActive ? ' active' : ''}`}>
+          <FaGear style={{ fontSize: 13 }} />
+          Workspace
         </NavLink>
         <NavLink to="/player" id="tab-player" className={({ isActive }) => `app-tab${isActive ? ' active' : ''}`}>
           <FaPlay style={{ fontSize: 12 }} />
