@@ -62,7 +62,7 @@ export default function SiteHeader() {
         </NavLink>
         <NavLink to="/player" id="tab-player" className={({ isActive }) => `app-tab${isActive ? ' active' : ''}`}>
           <FaPlay style={{ fontSize: 12 }} />
-          HLS Player
+          StreamYard
         </NavLink>
       </nav>
     </div>

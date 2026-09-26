@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
-import { FaFile, FaFolder } from 'react-icons/fa6';
+import { FaFile, FaFolder, FaFolderPlus } from 'react-icons/fa6';
 
 interface UploadDrawerProps {
   isOpen: boolean;
   currentPath: string;
   onUploadFile: (file: File, destPath: string) => void;
   onUploadFolder: (files: FileList, destPath: string) => void;
+  /** Called when the user submits a new folder name. Path is joined with currentPath internally. */
+  onMkdir?: (folderPath: string) => void;
   uploadPct: number;
   isUploading: boolean;
 }
@@ -15,12 +17,14 @@ export default function UploadDrawer({
   currentPath,
   onUploadFile,
   onUploadFolder,
+  onMkdir,
   uploadPct,
   isUploading,
 }: UploadDrawerProps) {
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
-  const [chosenLabel, setChosenLabel] = useState('No file chosen');
+  const [chosenLabel,  setChosenLabel]  = useState('No file chosen');
+  const [folderName,   setFolderName]   = useState('');
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -34,6 +38,15 @@ export default function UploadDrawer({
     if (!files || !files.length) return;
     setChosenLabel(`${files.length} file(s)`);
     onUploadFolder(files, currentPath);
+  };
+
+  const handleMkdir = () => {
+    const name = folderName.trim();
+    if (!name || !onMkdir) return;
+    // Join with currentPath: if inside a sub-directory, mkdir creates it there
+    const fullPath = currentPath ? `${currentPath}/${name}` : name;
+    onMkdir(fullPath);
+    setFolderName('');
   };
 
   return (
@@ -67,6 +80,31 @@ export default function UploadDrawer({
             onChange={handleFolder}
           />
         </div>
+
+        {/* Create Folder (mkdir) — only shown when onMkdir is provided */}
+        {onMkdir && (
+          <div className="picker-row" style={{ marginTop: 10, borderTop: '1px solid #1a1a1a', paddingTop: 12 }}>
+            <input
+              id="mkdir-input"
+              className="input"
+              type="text"
+              placeholder="New folder name…"
+              value={folderName}
+              onChange={(e) => setFolderName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleMkdir(); }}
+              style={{ flex: 1, minWidth: 0 }}
+            />
+            <button
+              id="mkdir-btn"
+              className="btn"
+              onClick={handleMkdir}
+              disabled={!folderName.trim()}
+              title="Create folder at current path"
+            >
+              <FaFolderPlus /> Create Folder
+            </button>
+          </div>
+        )}
 
         {isUploading && (
           <div id="upload-progress-inline">

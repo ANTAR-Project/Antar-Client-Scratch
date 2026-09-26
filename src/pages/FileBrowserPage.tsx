@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Breadcrumb from '../components/Breadcrumb';
 import FileBrowserTable from '../components/FileBrowserTable';
 import UploadDrawer from '../components/UploadDrawer';
@@ -10,11 +11,12 @@ interface FileBrowserPageProps {
 }
 
 export default function FileBrowserPage({ showToast }: FileBrowserPageProps) {
+  const routerNavigate = useNavigate();
   const {
     entries, status, errorMsg,
     listDirectory, deleteEntry,
     getPreviewUrl, getDownloadUrl,
-    uploadFile, uploadFolder,
+    uploadFile, uploadFolder, mkdirFiles,
   } = useNasApi();
 
   const [currentPath, setCurrentPath] = useState('');
@@ -35,6 +37,21 @@ export default function FileBrowserPage({ showToast }: FileBrowserPageProps) {
       const ok = await deleteEntry(path);
       if (ok) { showToast(`🗑 "${name}" deleted`, 'success'); listDirectory(currentPath); }
       else      showToast('❌ Delete failed', 'error');
+    } catch (err) {
+      showToast('❌ ' + (err instanceof Error ? err.message : String(err)), 'error');
+    }
+  };
+
+  /** Navigate to the HLS player page with the video's NAS path pre-filled. */
+  const handleStream = (nasPath: string) => {
+    routerNavigate(`/player?path=${encodeURIComponent(nasPath)}`);
+  };
+
+  const handleMkdir = async (folderPath: string) => {
+    try {
+      const ok = await mkdirFiles(folderPath);
+      if (ok) { showToast(`📁 Folder "${folderPath}" created`, 'success'); listDirectory(currentPath); }
+      else      showToast('❌ Create folder failed', 'error');
     } catch (err) {
       showToast('❌ ' + (err instanceof Error ? err.message : String(err)), 'error');
     }
@@ -83,6 +100,7 @@ export default function FileBrowserPage({ showToast }: FileBrowserPageProps) {
           currentPath={currentPath}
           onUploadFile={handleUploadFile}
           onUploadFolder={handleUploadFolder}
+          onMkdir={handleMkdir}
           uploadPct={uploadPct}
           isUploading={isUploading}
         />
@@ -97,6 +115,7 @@ export default function FileBrowserPage({ showToast }: FileBrowserPageProps) {
           onPreview={(path)  => window.open(getPreviewUrl(path), '_blank')}
           onDownload={(path) => { window.location.href = getDownloadUrl(path); }}
           onDelete={handleDelete}
+          onStream={handleStream}
         />
       </div>
     </div>

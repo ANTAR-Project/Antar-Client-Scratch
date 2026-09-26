@@ -24,8 +24,8 @@ export function useHlsPlayer() {
 
   const [playerStatus, setPlayerStatus] = useState<PlayerStatus>({ msg: '', type: '' });
   const [infoBox, setInfoBox] = useState<{
-    visible: boolean; movieId: string; nasPath: string; level: string; source: string;
-  }>({ visible: false, movieId: '', nasPath: '', level: '', source: '' });
+    visible: boolean; nasPath: string; playlistPath: string; level: string; source: string;
+  }>({ visible: false, nasPath: '', playlistPath: '', level: '', source: '' });
 
   // Quality state
   const [levels,        setLevels]        = useState<QualityLevel[]>([]);
@@ -40,8 +40,10 @@ export function useHlsPlayer() {
   }, []);
 
   // ── Video Upload ──────────────────────────────────────────────
+  // Upload goes through video-service, which scopes destination to {username}/{subPath}/{filename}.
+  // subPath is an optional sub-directory under the user's workspace (replaces the old movieId).
   const uploadVideo = useCallback(
-    (movieId: string, file: File, onMovieId: (id: string) => void) => {
+    (subPath: string, file: File, onNasPath: (nasPath: string) => void) => {
       setUploading(true);
       setUploadPct(0);
       setUploadStatus({ msg: '⏳ Uploading…', type: 'loading' });
@@ -50,18 +52,30 @@ export function useHlsPlayer() {
       fd.append('file', file);
 
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${VIDEO_API}/upload/${encodeURIComponent(movieId)}`);
+      // path is an optional sub-directory; if empty, video lands at {username}/{filename}
+      // appendToken attaches ?token= so video-service's TokenValidationFilter accepts the request
+      const baseUrl = subPath.trim()
+        ? `${VIDEO_API}/upload?path=${encodeURIComponent(subPath.trim())}`
+        : `${VIDEO_API}/upload`;
+      xhr.open('POST', appendToken(baseUrl));
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) setUploadPct(Math.round((e.loaded / e.total) * 100));
       });
       xhr.addEventListener('load', () => {
         setUploadPct(100);
         if (xhr.status >= 200 && xhr.status < 300) {
+          // Response body is the nasPath, e.g. "video uploaded successfully! Key = alice/sample.mp4 ..."
+          // Extract nasPath from the Key= portion of the response string
+          const body = xhr.responseText ?? '';
+          const keyMatch = body.match(/Key\s*=\s*([^\s:]+)/);
+          const nasPath = keyMatch ? keyMatch[1] : '';
           setUploadStatus({
-            msg: `✅ Upload complete (HTTP ${xhr.status}) — encoding pipeline triggered.`,
+            msg: `✅ Upload complete (HTTP ${xhr.status}) — encoding pipeline triggered.${
+              nasPath ? ` NAS path: ${nasPath}` : ''
+            }`,
             type: 'success',
           });
-          onMovieId(movieId);
+          onNasPath(nasPath);
         } else {
           setUploadStatus({ msg: `❌ Upload failed: HTTP ${xhr.status}`, type: 'error' });
         }
@@ -74,13 +88,16 @@ export function useHlsPlayer() {
       });
       xhr.send(fd);
     },
-    [],
+    [appendToken],
   );
 
   // ── HLS Playback ──────────────────────────────────────────────
-  const loadMovie = useCallback(async (movieId: string) => {
-    if (!movieId) {
-      setPlayerStatus({ msg: '❌ Please enter a Movie ID', type: 'error' });
+  // nasPath is the raw NAS path of the original uploaded video file,
+  // e.g. "alice/sample.mp4" — the same value used as the Kafka key in video.uploaded.
+  // streaming-service resolves this to the master.m3u8 path via Redis.
+  const loadStream = useCallback(async (nasPath: string) => {
+    if (!nasPath) {
+      setPlayerStatus({ msg: '❌ Please enter a NAS path (e.g. alice/sample.mp4)', type: 'error' });
       return;
     }
     setPlayerStatus({ msg: '⏳ Fetching playlist from streaming-service…', type: 'loading' });
@@ -90,24 +107,25 @@ export function useHlsPlayer() {
     if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
 
     try {
-      const streamUrl = appendToken(`${STREAMING_API}/${encodeURIComponent(movieId)}`);
+      // Path-based lookup — streaming-service scopes to {username}/{path} internally
+      const streamUrl = appendToken(`${STREAMING_API}?path=${encodeURIComponent(nasPath)}`);
       const r = await fetch(streamUrl);
-      if (r.status === 404) throw new Error(`Movie "${movieId}" not found — has it been encoded yet?`);
+      if (r.status === 404) throw new Error(`No playlist found for "${nasPath}" — has encoding completed?`);
       if (!r.ok) throw new Error(`streaming-service error: HTTP ${r.status}`);
       const m3u8Text = await r.text();
 
       setPlayerStatus({ msg: '✅ Playlist received — starting HLS playback…', type: 'success' });
 
-      // Parse info box data from first non-comment URI line
+      // Parse playlist path from first non-comment URI line for the info box
       const line  = m3u8Text.split('\n').find((l) => l.trim() && !l.trim().startsWith('#')) || '—';
       const match = line.match(/path=([^&\s]+)/);
-      const nasPath = match
+      const playlistPath = match
         ? decodeURIComponent(match[1]).replace(/\/[^/]+$/, '/…')
         : line.trim().substring(0, 60);
       setInfoBox({
         visible: true,
-        movieId,
         nasPath,
+        playlistPath,
         level: 'Parsing manifest…',
         source: 'streaming-service :8084 → nas-orchestrator :8081',
       });
@@ -188,7 +206,7 @@ export function useHlsPlayer() {
     uploadStatus, uploadPct, uploading,
     playerStatus,  infoBox,
     levels, currentLevel,
-    uploadVideo, loadMovie, switchQuality,
+    uploadVideo, loadStream, switchQuality,
     setInfoBox,
   };
 }

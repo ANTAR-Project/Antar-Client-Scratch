@@ -6,8 +6,8 @@ interface VideoPlayerProps {
   playerStatus: { msg: string; type: string };
   infoBox: {
     visible: boolean;
-    movieId: string;
     nasPath: string;
+    playlistPath: string;
     level: string;
     source: string;
   };
@@ -45,10 +45,10 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
             <div className="info-grid-header">📡 Stream Info</div>
             <div className="info-grid">
               {[
-                { label: 'Movie ID',          value: infoBox.movieId, mono: true,  id: 'infoMovieId' },
-                { label: 'NAS Playlist Path', value: infoBox.nasPath, mono: true,  id: 'infoNasPath' },
-                { label: 'HLS Level',         value: infoBox.level,   mono: false, id: 'infoLevel'   },
-                { label: 'Playlist Source',   value: infoBox.source,  mono: false, id: 'infoSource'  },
+                { label: 'Video NAS Path',    value: infoBox.nasPath,      mono: true,  id: 'infoNasPath'      },
+                { label: 'HLS Playlist Path', value: infoBox.playlistPath, mono: true,  id: 'infoPlaylistPath' },
+                { label: 'HLS Level',         value: infoBox.level,        mono: false, id: 'infoLevel'        },
+                { label: 'Playlist Source',   value: infoBox.source,       mono: false, id: 'infoSource'       },
               ].map(({ label, value, mono, id }) => (
                 <div key={id} className="info-cell">
                   <div className="info-cell-label">{label}</div>

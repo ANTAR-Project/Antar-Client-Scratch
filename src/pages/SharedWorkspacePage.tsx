@@ -19,6 +19,7 @@ export default function SharedWorkspacePage({ showToast }: SharedWorkspacePagePr
     getSharedDownloadUrl,
     uploadSharedFile,
     uploadSharedFolder,
+    mkdirShared,
     clearShared,
   } = useNasApi();
 
@@ -68,6 +69,16 @@ export default function SharedWorkspacePage({ showToast }: SharedWorkspacePagePr
       const ok = await clearShared();
       if (ok) { showToast('🗑 Shared workspace cleared', 'success'); loadDirectory(''); }
       else      showToast('❌ Clear failed', 'error');
+    } catch (err) {
+      showToast('❌ ' + (err instanceof Error ? err.message : String(err)), 'error');
+    }
+  };
+
+  const handleMkdir = async (folderPath: string) => {
+    try {
+      const ok = await mkdirShared(folderPath);
+      if (ok) { showToast(`📁 Folder "${folderPath}" created`, 'success'); loadDirectory(currentPath); }
+      else      showToast('❌ Create folder failed', 'error');
     } catch (err) {
       showToast('❌ ' + (err instanceof Error ? err.message : String(err)), 'error');
     }
@@ -124,6 +135,7 @@ export default function SharedWorkspacePage({ showToast }: SharedWorkspacePagePr
           currentPath={currentPath}
           onUploadFile={handleUploadFile}
           onUploadFolder={handleUploadFolder}
+          onMkdir={handleMkdir}
           uploadPct={uploadPct}
           isUploading={isUploading}
         />

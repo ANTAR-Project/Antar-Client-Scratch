@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PipelineBadge from '../components/PipelineBadge';
 import VideoPlayer from '../components/VideoPlayer';
 import { useHlsPlayer } from '../hooks/useHlsPlayer';
@@ -15,17 +16,37 @@ export default function HlsPlayerPage({ showToast: _showToast }: HlsPlayerPagePr
     playerStatus,
     infoBox,
     levels, currentLevel,
-    uploadVideo, loadMovie, switchQuality,
+    uploadVideo, loadStream, switchQuality,
   } = useHlsPlayer();
 
+  const [searchParams] = useSearchParams();
 
-  const [uploadMovieId, setUploadMovieId] = useState('');
-  const [chosenFile,    setChosenFile]    = useState<File | null>(null);
-  const [movieId,       setMovieId]       = useState('');
-  const [isDragging,    setIsDragging]    = useState(false);
+  // ── Upload state ─────────────────────────────────────────────
+  // subPath is an optional sub-directory under the user's workspace.
+  // File will land at {username}/{subPath}/{filename} on the NAS.
+  const [subPath,     setSubPath]     = useState('');
+  const [chosenFile,  setChosenFile]  = useState<File | null>(null);
+  const [isDragging,  setIsDragging]  = useState(false);
+
+  // ── Playback state ───────────────────────────────────────────
+  // nasPath is the raw NAS path of the uploaded video, e.g. "alice/sample.mp4".
+  // Pre-filled from ?path= query param when navigating from the file browser.
+  const [nasPath, setNasPath] = useState('');
 
   const uploadFileInputRef = useRef<HTMLInputElement>(null);
-  const canUpload = uploadMovieId.trim().length > 0 && chosenFile !== null;
+  const canUpload = chosenFile !== null;
+
+  // Pre-fill nasPath from query param (set by file browser "Stream" action)
+  useEffect(() => {
+    const p = searchParams.get('path');
+    if (p) {
+      setNasPath(p);
+      // Auto-trigger playback when arriving directly from file browser
+      loadStream(p);
+    }
+    // Only run on mount / when the query param changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -52,16 +73,17 @@ export default function HlsPlayerPage({ showToast: _showToast }: HlsPlayerPagePr
           <div className="section-label">📤 Step 1 — Upload Video to pipeline</div>
 
           <div className="input-row">
-            {/* Movie ID */}
+            {/* Optional sub-path */}
             <input
               type="text"
               className="input"
-              style={{ flex: '0 0 200px' }}
-              id="uploadMovieId"
-              placeholder="Movie ID"
+              style={{ flex: '0 0 220px' }}
+              id="uploadSubPath"
+              placeholder="Sub-path (optional, e.g. movies)"
               autoComplete="off"
-              value={uploadMovieId}
-              onChange={(e) => setUploadMovieId(e.target.value)}
+              value={subPath}
+              onChange={(e) => setSubPath(e.target.value)}
+              title="Optional sub-directory under your workspace. Leave empty to upload directly to your workspace root."
             />
 
             {/* File picker */}
@@ -113,7 +135,14 @@ export default function HlsPlayerPage({ showToast: _showToast }: HlsPlayerPagePr
             <button
               id="uploadBtn"
               className="btn-primary"
-              onClick={() => { if (canUpload && chosenFile) uploadVideo(uploadMovieId.trim(), chosenFile, setMovieId); }}
+              onClick={() => {
+                if (canUpload && chosenFile) {
+                  uploadVideo(subPath, chosenFile, (returnedNasPath) => {
+                    // Auto-fill the stream path after upload completes
+                    if (returnedNasPath) setNasPath(returnedNasPath);
+                  });
+                }
+              }}
               disabled={!canUpload || uploading}
             >
               <FaUpload style={{ fontSize: 13 }} />
@@ -145,19 +174,23 @@ export default function HlsPlayerPage({ showToast: _showToast }: HlsPlayerPagePr
       {/* ── Step 2: Play ── */}
       <div className="panel-glass">
         <div className="step-panel">
-          <div className="section-label">▶ Step 2 — Stream by Movie ID</div>
+          <div className="section-label">▶ Step 2 — Stream by NAS Path</div>
+          <div style={{ fontSize: 12.5, color: '#555', marginBottom: 10 }}>
+            Enter the raw NAS path of the uploaded <code>.mp4</code> file — same as the path shown after upload
+            (e.g. <code>alice/sample.mp4</code>). Or click a video file in the File Browser to stream it directly.
+          </div>
           <div className="input-row">
             <input
               type="text"
               className="input"
-              id="movieId"
-              placeholder="Enter Movie ID (e.g. movie-001)"
+              id="nasPathInput"
+              placeholder="NAS path (e.g. alice/sample.mp4)"
               autoComplete="off"
-              value={movieId}
-              onChange={(e) => setMovieId(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') loadMovie(movieId.trim()); }}
+              value={nasPath}
+              onChange={(e) => setNasPath(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') loadStream(nasPath.trim()); }}
             />
-            <button id="playBtn" className="btn-primary" onClick={() => loadMovie(movieId.trim())}>
+            <button id="playBtn" className="btn-primary" onClick={() => loadStream(nasPath.trim())}>
               <FaPlay style={{ fontSize: 12 }} /> Play
             </button>
           </div>

@@ -107,6 +107,15 @@ export function useNasApi() {
     [appendToken],
   );
 
+  /** POST /files/mkdir — Create a folder (and any intermediate directories) inside the caller's scoped workspace.
+   *  `path` is required and must not contain `..`, backslashes, or a leading `/`.
+   *  Returns true on HTTP 200/201. */
+  const mkdirFiles = useCallback(async (path: string): Promise<boolean> => {
+    const url = appendToken(`${NAS_API}/files/mkdir?path=${encodeURIComponent(path)}`);
+    const res = await fetch(url, { method: 'POST' });
+    return res.ok || res.status === 201;
+  }, [appendToken]);
+
   // ── Shared Workspace API ───────────────────────────────────────────────────
 
   /** GET /shared/list — List files/folders in the shared workspace. */
@@ -171,6 +180,15 @@ export function useNasApi() {
     [appendToken],
   );
 
+  /** POST /shared/mkdir — Create a folder (and any intermediate directories) inside the shared workspace.
+   *  `path` is required and must not contain `..`, backslashes, or a leading `/`.
+   *  Returns true on HTTP 200/201. */
+  const mkdirShared = useCallback(async (path: string): Promise<boolean> => {
+    const url = appendToken(`${NAS_API}/shared/mkdir?path=${encodeURIComponent(path)}`);
+    const res = await fetch(url, { method: 'POST' });
+    return res.ok || res.status === 201;
+  }, [appendToken]);
+
   /** GET /shared/download — Stream-download a file from the shared workspace. */
   const getSharedDownloadUrl = useCallback((path: string) => {
     return appendToken(`${NAS_API}/shared/download?path=${encodeURIComponent(path)}`);
@@ -234,10 +252,12 @@ export function useNasApi() {
     getDownloadUrl,
     uploadFile,
     uploadFolder,
+    mkdirFiles,
     // Shared Workspace API
     listShared,
     uploadSharedFile,
     uploadSharedFolder,
+    mkdirShared,
     getSharedDownloadUrl,
     getSharedPreviewUrl,
     deleteSharedEntry,

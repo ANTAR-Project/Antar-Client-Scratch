@@ -1,6 +1,6 @@
 import type { FileEntry } from '../types';
 import { getIcon, isPreviewable, formatSize, formatDate, joinPath } from '../utils';
-import { FaEye, FaDownload, FaTrash } from 'react-icons/fa6';
+import { FaEye, FaDownload, FaTrash, FaCirclePlay } from 'react-icons/fa6';
 
 interface FileBrowserTableProps {
   entries: FileEntry[];
@@ -11,11 +11,19 @@ interface FileBrowserTableProps {
   onPreview: (path: string) => void;
   onDownload: (path: string) => void;
   onDelete: (path: string, name: string) => void;
+  /** Called when user clicks the Stream button on a video file. Path is the full NAS path. */
+  onStream?: (path: string) => void;
+}
+
+/** Returns true for raw video formats that can be ingested through the HLS pipeline. */
+function isStreamable(name: string): boolean {
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  return ['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(ext);
 }
 
 export default function FileBrowserTable({
   entries, status, errorMsg, currentPath,
-  onNavigate, onPreview, onDownload, onDelete,
+  onNavigate, onPreview, onDownload, onDelete, onStream,
 }: FileBrowserTableProps) {
   const sorted = [...entries].sort((a, b) => {
     if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
@@ -63,10 +71,11 @@ export default function FileBrowserTable({
           )}
 
           {status === 'idle' && sorted.map((entry) => {
-            const displayName = entry.isDirectory ? entry.name.replace(/\/$/, '') : entry.name;
-            const fullPath    = joinPath(currentPath, entry.name);
-            const icon        = getIcon(entry.name, entry.isDirectory);
-            const canPreview  = !entry.isDirectory && isPreviewable(entry.name);
+            const displayName  = entry.isDirectory ? entry.name.replace(/\/$/, '') : entry.name;
+            const fullPath     = joinPath(currentPath, entry.name);
+            const icon         = getIcon(entry.name, entry.isDirectory);
+            const canPreview   = !entry.isDirectory && isPreviewable(entry.name);
+            const canStream    = !entry.isDirectory && isStreamable(entry.name) && !!onStream;
 
             return (
               <tr key={fullPath} className="file-row">
@@ -93,6 +102,16 @@ export default function FileBrowserTable({
                 </td>
                 <td className="file-cell-actions">
                   <div className="file-row-actions">
+                    {canStream && (
+                      <button
+                        className="btn-icon-sm"
+                        title="Stream via HLS pipeline"
+                        onClick={(e) => { e.stopPropagation(); onStream!(fullPath); }}
+                        style={{ color: 'var(--accent, #6ee7b7)' }}
+                      >
+                        <FaCirclePlay />
+                      </button>
+                    )}
                     {!entry.isDirectory && canPreview && (
                       <button
                         className="btn-icon-sm"
