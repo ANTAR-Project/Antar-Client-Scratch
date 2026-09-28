@@ -1,6 +1,8 @@
+import { useCallback } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import SiteHeader from './components/SiteHeader';
 import ToastContainer from './components/ToastContainer';
+import NotificationPopup, { useNotificationQueue } from './components/NotificationPopup';
 import FileBrowserPage from './pages/FileBrowserPage';
 import StreamYardPage from './pages/StreamYardPage';
 import StreamPlayerPage from './pages/StreamPlayerPage';
@@ -8,7 +10,10 @@ import LoginPage from './pages/LoginPage';
 import SharedWorkspacePage from './pages/SharedWorkspacePage';
 import WorkspacePage from './pages/WorkspacePage';
 import { useToast } from './hooks/useToast';
+import { useNotifications } from './hooks/useNotifications';
+import type { PlaylistReadyPayload } from './hooks/useNotifications';
 import { useAuth } from './context/AuthContext';
+import { NOTIFICATION_WS_URL } from './config';
 
 /** Routes that render without the shell chrome (header / footer). */
 const BARE_ROUTES = ['/stream'];
@@ -19,6 +24,19 @@ function AppShell() {
   const { pathname } = useLocation();
 
   const isBare = BARE_ROUTES.some(p => pathname.startsWith(p));
+
+  // ── Playlist-ready notifications ───────────────────────────────────────────
+  const { items: notifications, enqueue, dismiss } = useNotificationQueue();
+
+  const handlePlaylistReady = useCallback((payload: PlaylistReadyPayload) => {
+    enqueue(payload);
+  }, [enqueue]);
+
+  useNotifications({
+    url: NOTIFICATION_WS_URL,
+    token,
+    onPlaylistReady: handlePlaylistReady,
+  });
 
   // ── Not authenticated — show login gate ────────────────────────────────────
   if (!token) {
@@ -38,6 +56,7 @@ function AppShell() {
           <Route path="/stream" element={<StreamPlayerPage />} />
         </Routes>
         <ToastContainer toasts={toasts} onRemove={removeToast} />
+        <NotificationPopup notifications={notifications} onDismiss={dismiss} />
       </>
     );
   }
@@ -63,6 +82,7 @@ function AppShell() {
       </footer>
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <NotificationPopup notifications={notifications} onDismiss={dismiss} />
     </div>
   );
 }

@@ -1873,6 +1873,37 @@ body {
   font-size: 15px;
 }
 
+/* ── Speed menu overrides ── */
+/* Slightly wider than the quality menu; items are center-aligned */
+.sp-speed-menu {
+  min-width: 180px;
+}
+
+.sp-speed-menu .sp-quality-option {
+  justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+/* Active speed uses amber (distinct from red quality active) */
+.sp-speed-menu .sp-quality-option.active {
+  color: #f5a623;
+}
+
+.sp-speed-menu .sp-quality-check {
+  color: #f5a623;
+}
+
+/* Button badge glow when playing at non-normal speed */
+.sp-speed-active {
+  color: #f5a623 !important;
+}
+
+.sp-speed-active:hover {
+  background: rgba(245, 166, 35, 0.12) !important;
+}
+
 /* ── Loading overlay ── */
 .sp-loading {
   position: absolute;
@@ -1981,5 +2012,242 @@ body {
 .sp-centre-play:hover svg {
   color: #fff;
   transform: scale(1.12);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NOTIFICATION POPUP  (playlist.ready)
+═══════════════════════════════════════════════════════════ */
+
+/* Stack anchor — top-right, above everything */
+.notif-portal {
+  position: fixed;
+  top: 80px;        /* clear the sticky header */
+  right: 24px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 380px;
+  width: calc(100vw - 48px);
+  pointer-events: none; /* let clicks pass through gaps between cards */
+}
+
+/* ── Card shell ── */
+.notif-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 16px 18px 20px;
+  background: rgba(13, 13, 13, 0.94);
+  border: 1px solid rgba(70, 211, 105, 0.22);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(70, 211, 105, 0.06),
+    0 8px 48px rgba(0, 0, 0, 0.72),
+    0 0 32px rgba(70, 211, 105, 0.06);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  overflow: hidden;
+  pointer-events: auto; /* cards themselves are clickable */
+}
+
+/* Slide-in */
+.notif-card--enter {
+  animation: notif-slide-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Slide-out (shrink so the stacked cards close the gap) */
+.notif-card--exit {
+  animation: notif-slide-out 0.32s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes notif-slide-in {
+  from { opacity: 0; transform: translateX(32px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(0)    scale(1);    }
+}
+
+@keyframes notif-slide-out {
+  from { opacity: 1; transform: translateX(0)    scale(1);    max-height: 200px; margin-bottom: 0; }
+  to   { opacity: 0; transform: translateX(32px) scale(0.96); max-height: 0;     margin-bottom: -12px; }
+}
+
+/* ── Left glow accent bar ── */
+.notif-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #46d369 0%, rgba(70, 211, 105, 0.3) 100%);
+  border-radius: 3px 0 0 3px;
+}
+
+/* ── Icon ── */
+.notif-icon-wrap {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(70, 211, 105, 0.1);
+  border: 1px solid rgba(70, 211, 105, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #46d369;
+  box-shadow: 0 0 16px rgba(70, 211, 105, 0.18);
+  animation: notif-icon-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes notif-icon-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(70, 211, 105, 0.16); }
+  50%       { box-shadow: 0 0 22px rgba(70, 211, 105, 0.34); }
+}
+
+.notif-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* ── Text body ── */
+.notif-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.notif-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: #46d369;
+  margin: 0;
+  line-height: 1;
+}
+
+.notif-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #f0f0f0;
+  margin: 5px 0 3px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notif-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: #3a3a3a;
+  margin: 0 0 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Action row ── */
+.notif-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-btn-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-family: inherit;
+  border-radius: 9px;
+  border: none;
+  background: rgba(70, 211, 105, 0.14);
+  color: #46d369;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s, transform 0.15s;
+  outline: none;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+.notif-btn-play:hover {
+  background: rgba(70, 211, 105, 0.24);
+  box-shadow: 0 0 18px rgba(70, 211, 105, 0.22);
+  transform: translateY(-1px);
+}
+
+.notif-btn-play:active { transform: scale(0.96); }
+
+.notif-btn-dismiss {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 9px;
+  border: 1px solid #2a2a2a;
+  background: transparent;
+  color: #4a4a4a;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  outline: none;
+  white-space: nowrap;
+}
+
+.notif-btn-dismiss:hover {
+  background: #1c1c1c;
+  color: #888;
+  border-color: #333;
+}
+
+/* ── Close × button ── */
+.notif-close {
+  flex-shrink: 0;
+  align-self: flex-start;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #3a3a3a;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  padding: 0;
+  margin-top: -2px;
+}
+
+.notif-close:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #888;
+}
+
+/* ── Auto-dismiss timer line (animates across the bottom edge) ── */
+.notif-timer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, #46d369, rgba(70, 211, 105, 0.3));
+  border-radius: 0 0 16px 16px;
+  transform-origin: left center;
+  animation: notif-timer-drain 8s linear forwards;
+}
+
+@keyframes notif-timer-drain {
+  from { transform: scaleX(1); opacity: 1; }
+  to   { transform: scaleX(0); opacity: 0.4; }
 }
 

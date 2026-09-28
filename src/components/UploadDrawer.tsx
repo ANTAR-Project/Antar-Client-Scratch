@@ -5,11 +5,15 @@ interface UploadDrawerProps {
   isOpen: boolean;
   currentPath: string;
   onUploadFile: (file: File, destPath: string) => void;
-  onUploadFolder: (files: FileList, destPath: string) => void;
+  onUploadFolder?: (files: FileList, destPath: string) => void;
   /** Called when the user submits a new folder name. Path is joined with currentPath internally. */
   onMkdir?: (folderPath: string) => void;
   uploadPct: number;
   isUploading: boolean;
+  /** If set, restricts the file input to this MIME/extension filter (e.g. "video/mp4,.mp4"). */
+  accept?: string;
+  /** When true the "Choose Folder" button is hidden. Defaults to false. */
+  hideFolder?: boolean;
 }
 
 export default function UploadDrawer({
@@ -20,6 +24,8 @@ export default function UploadDrawer({
   onMkdir,
   uploadPct,
   isUploading,
+  accept,
+  hideFolder = false,
 }: UploadDrawerProps) {
   const fileInputRef   = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -64,21 +70,31 @@ export default function UploadDrawer({
           <button className="btn" onClick={() => fileInputRef.current?.click()}>
             <FaFile /> Choose File
           </button>
-          <button className="btn" onClick={() => folderInputRef.current?.click()}>
-            <FaFolder /> Choose Folder
-          </button>
+          {!hideFolder && (
+            <button className="btn" onClick={() => folderInputRef.current?.click()}>
+              <FaFolder /> Choose Folder
+            </button>
+          )}
           <span className="picker-label" id="upload-chosen-label">{chosenLabel}</span>
 
-          <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFile} />
           <input
-            ref={folderInputRef}
+            ref={fileInputRef}
             type="file"
             style={{ display: 'none' }}
-            // @ts-ignore
-            webkitdirectory="true"
-            multiple
-            onChange={handleFolder}
+            accept={accept}
+            onChange={handleFile}
           />
+          {!hideFolder && (
+            <input
+              ref={folderInputRef}
+              type="file"
+              style={{ display: 'none' }}
+              // @ts-ignore
+              webkitdirectory="true"
+              multiple
+              onChange={handleFolder}
+            />
+          )}
         </div>
 
         {/* Create Folder (mkdir) — only shown when onMkdir is provided */}

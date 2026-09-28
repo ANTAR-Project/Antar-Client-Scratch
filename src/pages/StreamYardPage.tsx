@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import PipelineBadge from '../components/PipelineBadge';
+import Breadcrumb from '../components/Breadcrumb';
+import FileBrowserTable from '../components/FileBrowserTable';
+import UploadDrawer from '../components/UploadDrawer';
 import { useAuth } from '../context/AuthContext';
+import { useNasApi } from '../hooks/useNasApi';
 import { NAS_API, STREAMING_API } from '../config';
-import { FaUpload, FaFilm, FaRotateRight } from 'react-icons/fa6';
+import { FaUpload, FaFilm, FaRotateRight, FaXmark } from 'react-icons/fa6';
 
 interface StreamYardPageProps {
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
@@ -18,17 +22,32 @@ export default function StreamYardPage({ showToast }: StreamYardPageProps) {
   const { appendToken, authHeader } = useAuth();
   const [searchParams] = useSearchParams();
 
+  // ── NAS file-browser state ─────────────────────────────────────
+  const {
+    entries, status, errorMsg,
+    listDirectory,
+    getPreviewUrl, getDownloadUrl,
+  } = useNasApi();
+
+  const [currentPath, setCurrentPath] = useState('');
+  const [drawerOpen,  setDrawerOpen]  = useState(false);
+
   // ── Upload state ──────────────────────────────────────────────
-  const [chosenFile,    setChosenFile]    = useState<File | null>(null);
-  const [isDragging,    setIsDragging]    = useState(false);
-  const [uploading,     setUploading]     = useState(false);
-  const [uploadPct,     setUploadPct]     = useState(0);
-  const [uploadMsg,     setUploadMsg]     = useState<{ text: string; ok: boolean } | null>(null);
-  const uploadFileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading,  setUploading]  = useState(false);
+  const [uploadPct,  setUploadPct]  = useState(0);
+  const [uploadMsg,  setUploadMsg]  = useState<{ text: string; ok: boolean } | null>(null);
 
   // ── Playlist library state ────────────────────────────────────
   const [playlists,        setPlaylists]        = useState<PlaylistEntry[]>([]);
   const [playlistsLoading, setPlaylistsLoading] = useState(false);
+
+  // ── Browse navigation ─────────────────────────────────────────
+  const navigate = useCallback(
+    (path: string) => { setCurrentPath(path); listDirectory(path); },
+    [listDirectory],
+  );
+
+  useEffect(() => { listDirectory(''); }, [listDirectory]);
 
   // ── Fetch playlist library ────────────────────────────────────
   const fetchPlaylists = useCallback(async () => {
@@ -60,19 +79,25 @@ export default function StreamYardPage({ showToast }: StreamYardPageProps) {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  // ── Upload ─────────────────────────────────────────────────────
-  const handleUpload = () => {
-    if (!chosenFile) return;
+  // ── Upload .mp4 to the video pipeline ─────────────────────────
+  // UploadDrawer calls onUploadFile(file, destPath) where destPath is currentPath.
+  const handleUploadFile = (file: File, destPath: string) => {
+    // Guard: pipeline only accepts .mp4
+    if (!file.name.toLowerCase().endsWith('.mp4')) {
+      showToast('⚠️ Only .mp4 files are accepted by the pipeline.', 'error');
+      return;
+    }
+
     setUploading(true);
     setUploadPct(0);
     setUploadMsg(null);
 
     const fd = new FormData();
-    fd.append('file', chosenFile);
+    fd.append('file', file);
+    fd.append('path', destPath);   // honour the currently-browsed directory
 
     const xhr = new XMLHttpRequest();
-    const uploadUrl = appendToken(`/api/v1/videos/upload`);
-    xhr.open('POST', uploadUrl);
+    xhr.open('POST', appendToken(`/api/v1/videos/upload`));
 
     xhr.upload.addEventListener('progress', (e) => {
       if (e.lengthComputable) setUploadPct(Math.round((e.loaded / e.total) * 100));
@@ -82,9 +107,11 @@ export default function StreamYardPage({ showToast }: StreamYardPageProps) {
       setUploading(false);
       setUploadPct(100);
       if (xhr.status >= 200 && xhr.status < 300) {
-        setUploadMsg({ text: '✅ Upload complete — encoding pipeline triggered. Your video will appear in the library once encoding finishes.', ok: true });
-        setChosenFile(null);
-        if (uploadFileInputRef.current) uploadFileInputRef.current.value = '';
+        setUploadMsg({
+          text: '✅ Upload complete — encoding pipeline triggered. Your video will appear in the library once encoding finishes.',
+          ok: true,
+        });
+        setDrawerOpen(false);
         // Refresh library after a delay to pick up newly encoded content
         setTimeout(() => fetchPlaylists(), 5000);
       } else {
@@ -98,13 +125,6 @@ export default function StreamYardPage({ showToast }: StreamYardPageProps) {
     });
 
     xhr.send(fd);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) setChosenFile(file);
   };
 
   // ── Thumbnail URL builder ──────────────────────────────────────
@@ -127,96 +147,66 @@ export default function StreamYardPage({ showToast }: StreamYardPageProps) {
         </div>
       </div>
 
-      {/* ── Upload Panel ── */}
-      <div
-        className={`panel-dashed${isDragging ? ' drag-over' : ''}`}
-        id="uploadPanel"
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={() => setIsDragging(false)}
-        onDrop={handleDrop}
-      >
-        <div className="step-panel">
-          <div className="section-label">📤 Upload Video to Pipeline</div>
+      {/* ── Upload / File Explorer Panel ── */}
+      <div className="panel" id="uploadPanel">
+        <div className="section-label" style={{ marginBottom: 12 }}>📤 Upload .mp4 to Pipeline</div>
 
-          <div className="input-row">
-            {/* File picker area */}
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-                padding: '13px 18px',
-                background: 'rgba(0,0,0,0.4)',
-                border: '1px solid #222',
-                borderRadius: 12,
-                cursor: 'pointer',
-                minWidth: 0,
-                transition: 'border-color 0.2s',
-              }}
-              id="filePickArea"
-              onClick={() => uploadFileInputRef.current?.click()}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = '#333')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = '#222')}
-            >
-              <span style={{ fontSize: 20, flexShrink: 0, lineHeight: 1 }}>🎬</span>
-              <span
-                id="filePickLabel"
-                style={{
-                  fontSize: 14.5,
-                  color: chosenFile ? '#e8e8e8' : '#3a3a3a',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
-                  fontWeight: 500,
-                }}
-              >
-                {chosenFile ? chosenFile.name : 'Choose or drag a video file…'}
-              </span>
-              {chosenFile && (
-                <span style={{ fontSize: 11, color: '#555', flexShrink: 0 }}>
-                  {(chosenFile.size / 1024 / 1024).toFixed(1)} MB
-                </span>
-              )}
-            </div>
-
-            <input
-              ref={uploadFileInputRef}
-              type="file"
-              id="uploadFileInput"
-              accept="video/*"
-              style={{ display: 'none' }}
-              onChange={(e) => setChosenFile(e.target.files?.[0] ?? null)}
-            />
-
+        {/* Toolbar — mirrors FileBrowserPage */}
+        <div className="browser-toolbar">
+          <Breadcrumb currentPath={currentPath} onNavigate={navigate} />
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginLeft: 'auto' }}>
             <button
-              id="uploadBtn"
-              className="btn-primary"
-              onClick={handleUpload}
-              disabled={!chosenFile || uploading}
+              className="btn"
+              id="btn-toggle-upload-drawer"
+              onClick={() => setDrawerOpen(o => !o)}
             >
-              <FaUpload style={{ fontSize: 13 }} />
-              {uploading ? 'Uploading…' : 'Upload'}
+              {drawerOpen ? <><FaXmark /> Close</> : <><FaUpload /> Upload .mp4</>}
+            </button>
+            <button
+              className="btn btn-icon"
+              id="btn-refresh-browser"
+              onClick={() => navigate(currentPath)}
+              title="Refresh"
+            >
+              <FaRotateRight />
             </button>
           </div>
-
-          {uploading && (
-            <div className="progress-track" id="progressWrap">
-              <div className="progress-fill" id="progressBar" style={{ width: `${uploadPct}%` }} />
-            </div>
-          )}
-
-          {uploadMsg && (
-            <div
-              id="uploadStatus"
-              className={`status-line ${uploadMsg.ok ? 'success' : 'error'}`}
-              style={{ marginTop: 14 }}
-            >
-              {uploadMsg.text}
-            </div>
-          )}
         </div>
+
+        {/* Upload status message — persists outside the drawer */}
+        {uploadMsg && (
+          <div
+            id="uploadStatus"
+            className={`status-line ${uploadMsg.ok ? 'success' : 'error'}`}
+            style={{ marginTop: 10 }}
+          >
+            {uploadMsg.text}
+          </div>
+        )}
+
+        {/* Upload Drawer — .mp4 only, no folder upload, no mkdir */}
+        <UploadDrawer
+          isOpen={drawerOpen}
+          currentPath={currentPath}
+          onUploadFile={handleUploadFile}
+          uploadPct={uploadPct}
+          isUploading={uploading}
+          accept="video/mp4,.mp4"
+          hideFolder
+        />
+
+        {/* File Table */}
+        <FileBrowserTable
+          entries={entries}
+          status={status}
+          errorMsg={errorMsg}
+          currentPath={currentPath}
+          onNavigate={navigate}
+          onPreview={(path)  => window.open(getPreviewUrl(path), '_blank')}
+          onDownload={(path) => { window.location.href = getDownloadUrl(path); }}
+          onDelete={() => { /* delete disabled in StreamYard context */ }}
+          onStream={openPlayer}
+        />
       </div>
 
       {/* ── Playlist Library ── */}

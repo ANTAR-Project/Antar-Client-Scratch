@@ -28,8 +28,12 @@ export default function StreamPlayerPage() {
   const [duration,     setDuration]     = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showQuality,  setShowQuality]  = useState(false);
+  const [showSpeed,    setShowSpeed]    = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [buffered,     setBuffered]     = useState(0);
   const [activeLevelLabel, setActiveLevelLabel] = useState('Auto');
+
+  const SPEED_OPTIONS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
   const title = nasPath.replace(/^.*\//, '').replace(/\.[^.]+$/, '');
 
@@ -211,6 +215,39 @@ export default function StreamPlayerPage() {
     else document.exitFullscreen?.();
   };
 
+  const setSpeed = (rate: number) => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.playbackRate = rate;
+    setPlaybackSpeed(rate);
+    setShowSpeed(false);
+  };
+
+  // Keyboard: < nudges speed down, > nudges speed up (same as YouTube)
+  useEffect(() => {
+    const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === 'INPUT') return;
+      if (e.key === '<' || e.key === ',') {
+        setPlaybackSpeed(prev => {
+          const idx  = SPEEDS.indexOf(prev);
+          const next = SPEEDS[Math.max(0, idx - 1)];
+          if (videoRef.current) videoRef.current.playbackRate = next;
+          return next;
+        });
+      } else if (e.key === '>' || e.key === '.') {
+        setPlaybackSpeed(prev => {
+          const idx  = SPEEDS.indexOf(prev);
+          const next = SPEEDS[Math.min(SPEEDS.length - 1, idx + 1)];
+          if (videoRef.current) videoRef.current.playbackRate = next;
+          return next;
+        });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const fmt = (s: number) => {
     if (!isFinite(s)) return '0:00';
     const m = Math.floor(s / 60);
@@ -341,7 +378,7 @@ export default function StreamPlayerPage() {
                 <button
                   id="sp-quality-btn"
                   className="sp-ctrl-btn sp-quality-toggle"
-                  onClick={() => setShowQuality(v => !v)}
+                  onClick={() => { setShowQuality(v => !v); setShowSpeed(false); }}
                   title="Quality"
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -376,6 +413,41 @@ export default function StreamPlayerPage() {
                 )}
               </div>
             )}
+
+            {/* Playback speed */}
+            <div className="sp-quality-wrap">
+              <button
+                id="sp-speed-btn"
+                className={`sp-ctrl-btn sp-quality-toggle${playbackSpeed !== 1 ? ' sp-speed-active' : ''}`}
+                onClick={() => { setShowSpeed(v => !v); setShowQuality(false); }}
+                title="Playback speed"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a10 10 0 1 1 0 20A10 10 0 0 1 12 2z"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>
+                  {playbackSpeed === 1 ? '1×' : `${playbackSpeed}×`}
+                </span>
+              </button>
+
+              {showSpeed && (
+                <div className="sp-quality-menu sp-speed-menu" id="sp-speed-menu">
+                  <div className="sp-quality-menu-title">Playback Speed</div>
+                  {SPEED_OPTIONS.map(rate => (
+                    <button
+                      key={rate}
+                      id={`sp-speed-${String(rate).replace('.', '_')}`}
+                      className={`sp-quality-option${playbackSpeed === rate ? ' active' : ''}`}
+                      onClick={() => setSpeed(rate)}
+                    >
+                      <span>{rate === 1 ? 'Normal' : `${rate}×`}</span>
+                      {playbackSpeed === rate && <span className="sp-quality-check">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Fullscreen */}
             <button id="sp-fullscreen-btn" className="sp-ctrl-btn" onClick={toggleFullscreen} title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
