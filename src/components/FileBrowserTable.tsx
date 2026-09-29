@@ -121,15 +121,13 @@ export default function FileBrowserTable({
                         <FaEye />
                       </button>
                     )}
-                    {!entry.isDirectory && (
-                      <button
-                        className="btn-icon-sm"
-                        title="Download"
-                        onClick={(e) => { e.stopPropagation(); onDownload(fullPath); }}
-                      >
-                        <FaDownload />
-                      </button>
-                    )}
+                    <button
+                      className="btn-icon-sm"
+                      title="Download"
+                      onClick={(e) => { e.stopPropagation(); onDownload(fullPath); }}
+                    >
+                      <FaDownload />
+                    </button>
                     <button
                       className="btn-icon-sm danger"
                       title="Delete"
